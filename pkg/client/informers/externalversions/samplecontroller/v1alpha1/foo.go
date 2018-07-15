@@ -33,6 +33,7 @@ import (
 
 // FooInformer provides access to a shared informer and lister for
 // Foos.
+// FooInformer提供了对于Foo对象的shared informer和lister
 type FooInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() v1alpha1.FooLister
@@ -47,6 +48,9 @@ type fooInformer struct {
 // NewFooInformer constructs a new informer for Foo type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// NewFooInformer为Foo类型创建一个新的informer
+// 总是应该使用informer factory去获取一个shared informer而不是独立获取一个
+// 这能减少memory footprint以及到达服务器的连接数
 func NewFooInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFilteredFooInformer(client, namespace, resyncPeriod, indexers, nil)
 }
@@ -54,6 +58,7 @@ func NewFooInformer(client versioned.Interface, namespace string, resyncPeriod t
 // NewFilteredFooInformer constructs a new informer for Foo type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// NewFilteredFooInformer为Foo类型创建一个新的informer
 func NewFilteredFooInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{

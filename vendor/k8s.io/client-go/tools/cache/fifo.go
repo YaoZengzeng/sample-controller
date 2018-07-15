@@ -44,22 +44,29 @@ func (e ErrRequeue) Error() string {
 }
 
 // Queue is exactly like a Store, but has a Pop() method too.
+// Queue和Store是类似的，但是还有个Pop()方法
 type Queue interface {
 	Store
 
 	// Pop blocks until it has something to process.
+	// Pop会一直阻塞直到我们有something可以处理
 	// It returns the object that was process and the result of processing.
+	// 它会返回经过处理的对象以及处理的结果
 	// The PopProcessFunc may return an ErrRequeue{...} to indicate the item
 	// should be requeued before releasing the lock on the queue.
+	// PopProcessFunc可能会返回一个ErrRequeue{...}用来表示在释放队列的锁之前需要将item
+	// 重新加入队列
 	Pop(PopProcessFunc) (interface{}, error)
 
 	// AddIfNotPresent adds a value previously
 	// returned by Pop back into the queue as long
 	// as nothing else (presumably more recent)
 	// has since been added.
+	// AddIfNotPresent将之前Pop返回的value重新加入队列
 	AddIfNotPresent(interface{}) error
 
 	// HasSynced returns true if the first batch of items has been popped
+	// HasSynced返回true，如果第一批items已经被pop了
 	HasSynced() bool
 
 	// Close queue

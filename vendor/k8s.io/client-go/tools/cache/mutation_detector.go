@@ -59,6 +59,8 @@ func (dummyMutationDetector) AddObject(obj interface{}) {
 // defaultCacheMutationDetector gives a way to detect if a cached object has been mutated
 // It has a list of cached objects and their copies.  I haven't thought of a way
 // to see WHO is mutating it, just that it's getting mutated.
+// defaultCacheMutationDetector用于检测一个缓存的对象是否突变
+// 它拥有一个缓存对象的列表以及它们的拷贝
 type defaultCacheMutationDetector struct {
 	name   string
 	period time.Duration
@@ -87,6 +89,7 @@ func (d *defaultCacheMutationDetector) Run(stopCh <-chan struct{}) {
 		select {
 		case <-stopCh:
 			return
+		// 每隔一秒对缓存的对象进行比较，检查是否发生了突变
 		case <-time.After(d.period):
 		}
 	}
@@ -99,6 +102,7 @@ func (d *defaultCacheMutationDetector) AddObject(obj interface{}) {
 		return
 	}
 	if obj, ok := obj.(runtime.Object); ok {
+		// 做一次深度拷贝，为接下来的比较做准备
 		copiedObj := obj.DeepCopyObject()
 
 		d.lock.Lock()

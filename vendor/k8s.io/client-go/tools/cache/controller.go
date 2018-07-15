@@ -27,16 +27,20 @@ import (
 )
 
 // Config contains all the settings for a Controller.
+// Config包含了一个Controller的所有配置
 type Config struct {
 	// The queue for your objects; either a FIFO or
 	// a DeltaFIFO. Your Process() function should accept
 	// the output of this Queue's Pop() method.
+	// 存储对象的队列，FIFO或者DeltaFIFO，我们的Process()函数应该
+	// 接收这个Queue的Pop()方法的输出
 	Queue
 
 	// Something that can list and watch your objects.
 	ListerWatcher
 
 	// Something that can process your objects.
+	// Process是能处理objects的函数
 	Process ProcessFunc
 
 	// The type of your objects.
@@ -54,6 +58,8 @@ type Config struct {
 	// ShouldResync, if specified, is invoked when the controller's reflector determines the next
 	// periodic sync should occur. If this returns true, it means the reflector should proceed with
 	// the resync.
+	// ShouldResync，如果指定的话，会在controller的reflector决定下一次sync是否到来时被调用
+	// 如果返回true，这意味着reflector需要处理下一次resync
 	ShouldResync ShouldResyncFunc
 
 	// If true, when Process() returns an error, re-enqueue the object.
@@ -69,9 +75,11 @@ type Config struct {
 type ShouldResyncFunc func() bool
 
 // ProcessFunc processes a single object.
+// ProcessFunc可以处理单个的object
 type ProcessFunc func(obj interface{}) error
 
 // Controller is a generic controller framework.
+// Controller是一个通用的controller框架
 type controller struct {
 	config         Config
 	reflector      *Reflector
@@ -86,6 +94,7 @@ type Controller interface {
 }
 
 // New makes a new Controller from the given Config.
+// New根据给定的Config创建一个新的Controller
 func New(c *Config) Controller {
 	ctlr := &controller{
 		config: *c,
@@ -97,15 +106,20 @@ func New(c *Config) Controller {
 // Run begins processing items, and will continue until a value is sent down stopCh.
 // It's an error to call Run more than once.
 // Run blocks; call via go.
+// Run开始处理items，并且会一直运行直到一个值被发送到stopCh
+// 调用Run多次是错误的
 func (c *controller) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	go func() {
 		<-stopCh
+		// 当stopCh被关闭的时候，关闭队列
 		c.config.Queue.Close()
 	}()
+	// 创建reflector
 	r := NewReflector(
 		c.config.ListerWatcher,
 		c.config.ObjectType,
+		// 队列就是reflector的Store
 		c.config.Queue,
 		c.config.FullResyncPeriod,
 	)
@@ -119,8 +133,10 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 	var wg wait.Group
 	defer wg.Wait()
 
+	// 启动reflector
 	wg.StartWithChannel(stopCh, r.Run)
 
+	// 每隔一秒钟从队列中取出所有的item并且分发给所有的listeners
 	wait.Until(c.processLoop, time.Second, stopCh)
 }
 
@@ -147,6 +163,7 @@ func (c *controller) LastSyncResourceVersion() string {
 // also be helpful.
 func (c *controller) processLoop() {
 	for {
+		// 从队列中获取obj，
 		obj, err := c.config.Queue.Pop(PopProcessFunc(c.config.Process))
 		if err != nil {
 			if err == FIFOClosedError {
@@ -163,6 +180,7 @@ func (c *controller) processLoop() {
 // ResourceEventHandler can handle notifications for events that happen to a
 // resource. The events are informational only, so you can't return an
 // error.
+// ResourceEventHandler可以处理那些发生在某个资源上的events的通知
 //  * OnAdd is called when an object is added.
 //  * OnUpdate is called when an object is modified. Note that oldObj is the
 //      last known state of the object-- it is possible that several changes
@@ -170,10 +188,16 @@ func (c *controller) processLoop() {
 //      change. OnUpdate is also called when a re-list happens, and it will
 //      get called even if nothing changed. This is useful for periodically
 //      evaluating or syncing something.
+//		oldObj是该对象上次已知的状态-- newObj和oldObj之间可能有几次状态的改变，因此我们
+//		无法看到单次状态的变化。OnUpdate会在re-list的时候被调用，也会在什么事情都没有发生的
+//		时候被调用。这对于阶段性地评估或者同步是很有用的
 //  * OnDelete will get the final state of the item if it is known, otherwise
 //      it will get an object of type DeletedFinalStateUnknown. This can
 //      happen if the watch is closed and misses the delete event and we don't
 //      notice the deletion until the subsequent re-list.
+//		OnDelete会获得item最终的状态，否则会获取一个对象，类型为DeletedFinalStateUnknown
+//		这可能会发生在watch被关闭并且丢失了delete event，而且我们直到下一次re-list之前都
+//		没有注意到这样一个事件
 type ResourceEventHandler interface {
 	OnAdd(obj interface{})
 	OnUpdate(oldObj, newObj interface{})

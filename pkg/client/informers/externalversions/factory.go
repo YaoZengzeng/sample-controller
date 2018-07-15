@@ -46,6 +46,8 @@ type sharedInformerFactory struct {
 	informers map[reflect.Type]cache.SharedIndexInformer
 	// startedInformers is used for tracking which informers have been started.
 	// This allows Start() to be called multiple times safely.
+	// startedInformers用来追踪哪些informer已经启动了
+	// 这能够允许Start()函数被安全地调用多次
 	startedInformers map[reflect.Type]bool
 }
 
@@ -76,6 +78,7 @@ func WithNamespace(namespace string) SharedInformerOption {
 }
 
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory for all namespaces.
+// NewSharedInformerFactory为所有的namespace构建了一个新的sharedInformerFactory实例
 func NewSharedInformerFactory(client versioned.Interface, defaultResync time.Duration) SharedInformerFactory {
 	return NewSharedInformerFactoryWithOptions(client, defaultResync)
 }
@@ -108,10 +111,12 @@ func NewSharedInformerFactoryWithOptions(client versioned.Interface, defaultResy
 }
 
 // Start initializes all requested informers.
+// Start初始化所有请求的informers
 func (f *sharedInformerFactory) Start(stopCh <-chan struct{}) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
+	// 遍历所有informer，启动所有未启动的informer
 	for informerType, informer := range f.informers {
 		if !f.startedInformers[informerType] {
 			go informer.Run(stopCh)
@@ -144,21 +149,26 @@ func (f *sharedInformerFactory) WaitForCacheSync(stopCh <-chan struct{}) map[ref
 
 // InternalInformerFor returns the SharedIndexInformer for obj using an internal
 // client.
+// InternalInformerFor返回使用internal client的对象的SharedIndexInformer
 func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
+	// 获取obj的类型
 	informerType := reflect.TypeOf(obj)
 	informer, exists := f.informers[informerType]
 	if exists {
+		// informer可以已经存在
 		return informer
 	}
 
 	resyncPeriod, exists := f.customResync[informerType]
 	if !exists {
+		// 获取默认的同步时间
 		resyncPeriod = f.defaultResync
 	}
 
+	// 根据一个client和同步时间创建一个新的informer
 	informer = newFunc(f.client, resyncPeriod)
 	f.informers[informerType] = informer
 
@@ -167,6 +177,7 @@ func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internal
 
 // SharedInformerFactory provides shared informers for resources in all known
 // API group versions.
+// SharedInformerFactory为所有API group versions里已知的resources提供shared informers
 type SharedInformerFactory interface {
 	internalinterfaces.SharedInformerFactory
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)

@@ -27,10 +27,15 @@ import (
 // and update a store. A generic store is provided, which allows Reflector to be used
 // as a local caching system, and an LRU store, which allows Reflector to work like a
 // queue of items yet to be processed.
+// Store是一个通用的对象存储接口，Reflector知道如果监听一个server并且更新store，这里提供了一个通用的
+// store，从而能够被Reflector作为一个本地缓存系统，以及一个LRU store，从而能够允许Reflector像一堆
+// items等待被处理的队列
 //
 // Store makes no assumptions about stored object identity; it is the responsibility
 // of a Store implementation to provide a mechanism to correctly key objects and to
 // define the contract for obtaining objects by some arbitrary key type.
+// Store并不假设存储的对象的特性，这是Store的实现的职责，提供机制正确地处理key objects以及制定协议
+// 用某些任意的key类型来获取objects
 type Store interface {
 	Add(obj interface{}) error
 	Update(obj interface{}) error

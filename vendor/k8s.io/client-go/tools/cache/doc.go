@@ -21,4 +21,8 @@ limitations under the License.
 // list currently available nodes), and one that additionally acts as
 // a FIFO queue (for example, to allow a scheduler to process incoming
 // pods).
+// cache包是客户端的缓存机制，它有助于减少我们调用服务端的次数
+// Reflector用于监听server并且更新Store，当前总共有两个stores:
+// 一个用于简单的缓存对象（比如，允许一个scheduler列举当前可得的nodes），另一个则类似于
+// FIFO queue（比如，允许一个scheduler处理incoming pods）
 package cache

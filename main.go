@@ -41,18 +41,22 @@ func main() {
 	flag.Parse()
 
 	// set up signals so we handle the first shutdown signal gracefully
+	// 设置signals，这样我们就能优雅地处理第一个signal
 	stopCh := signals.SetupSignalHandler()
 
+	// 根据flag中配置的两个变量，获取kubeconfig
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		glog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 
+	// 创建kubernetes client set
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		glog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	// 创建CDR的client set
 	exampleClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		glog.Fatalf("Error building example clientset: %s", err.Error())
@@ -61,7 +65,9 @@ func main() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*30)
 
+	// 新建一个controller实例
 	controller := NewController(kubeClient, exampleClient,
+		// 获取deployments的informer
 		kubeInformerFactory.Apps().V1().Deployments(),
 		exampleInformerFactory.Samplecontroller().V1alpha1().Foos())
 

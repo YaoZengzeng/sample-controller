@@ -62,10 +62,12 @@ const (
 )
 
 // Controller is the controller implementation for Foo resources
+// Controller是对于Foo资源的controller实现
 type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// sampleclientset is a clientset for our own API group
+	// sampleclientset是对于我们自己的API group的clientset
 	sampleclientset clientset.Interface
 
 	deploymentsLister appslisters.DeploymentLister
@@ -78,6 +80,10 @@ type Controller struct {
 	// means we can ensure we only process a fixed amount of resources at a
 	// time, and makes it easy to ensure we are never processing the same item
 	// simultaneously in two different workers.
+	// workqueue是一个具有限速功能的工作队列，它用来将待处理的work存入队列，而不是在改变发生
+	// 的时候直接对它进行处理
+	// 这意味着我们可以保证只在给定时间处理一个固定数目的资源，并且确保我们不会再两个不同的worker
+	// 中处理同一个item
 	workqueue workqueue.RateLimitingInterface
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
@@ -94,6 +100,8 @@ func NewController(
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
 	// logged for sample-controller types.
+	// 将sample-controller类型加入Kubernetes Scheme
+	// 这样就能为sample-controller类型记录event
 	samplescheme.AddToScheme(scheme.Scheme)
 	glog.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
@@ -114,9 +122,11 @@ func NewController(
 
 	glog.Info("Setting up event handlers")
 	// Set up an event handler for when Foo resources change
+	// 对Foo类型资源的更新设置event handler
 	fooInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueFoo,
 		UpdateFunc: func(old, new interface{}) {
+			// 对于update，直接将new加入队列
 			controller.enqueueFoo(new)
 		},
 	})
@@ -124,6 +134,8 @@ func NewController(
 	// handler will lookup the owner of the given Deployment, and if it is
 	// owned by a Foo resource will enqueue that Foo resource for
 	// processing. This way, we don't need to implement custom logic for
+	// 当Deployment资源对象发生变化时，这个handler会寻找给定Deployment的owner
+	// 如果它属于一个Foo resource，则会将该Foo resource加入队列进行处理
 	// handling Deployment resources. More info on this pattern:
 	// https://github.com/kubernetes/community/blob/8cafef897a22026d42f5e5bb3f104febe7e29830/contributors/devel/controllers.md
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -148,6 +160,8 @@ func NewController(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
+// Run会为我们感兴趣的types设置event handlers，同步informer caches以及启动workers
+// 它会一直阻塞直到stopCh被关闭，这时候它会关闭workqueue并且等待worker处理完它们当前的work items
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.workqueue.ShutDown()
@@ -177,6 +191,8 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 // runWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
+// runWorker是一个长期运行的函数，它会持续调用processNextWorkItem函数用于从workqueue
+// 中读取并处理message
 func (c *Controller) runWorker() {
 	for c.processNextWorkItem() {
 	}
@@ -192,6 +208,7 @@ func (c *Controller) processNextWorkItem() bool {
 	}
 
 	// We wrap this block in a func so we can defer c.workqueue.Done.
+	// 我们将这个代码块放在一个函数中，这样我们就能defer c.workqueue.Done
 	err := func(obj interface{}) error {
 		// We call Done here so the workqueue knows we have finished
 		// processing this item. We also must remember to call Forget if we
@@ -199,6 +216,8 @@ func (c *Controller) processNextWorkItem() bool {
 		// not call Forget if a transient error occurs, instead the item is
 		// put back on the workqueue and attempted again after a back-off
 		// period.
+		// 调用Done从而让workqueue知道我们已经处理完了items
+		// 如果我们不想这个work item被重新入队，我们必须记得调用Forget
 		defer c.workqueue.Done(obj)
 		var key string
 		var ok bool
@@ -207,6 +226,7 @@ func (c *Controller) processNextWorkItem() bool {
 		// workqueue means the items in the informer cache may actually be
 		// more up to date that when the item was initially put onto the
 		// workqueue.
+		// informer cache中的items可能比这个item刚放入workqueue的时候更新
 		if key, ok = obj.(string); !ok {
 			// As the item in the workqueue is actually invalid, we call
 			// Forget here else we'd go into a loop of attempting to
@@ -217,11 +237,14 @@ func (c *Controller) processNextWorkItem() bool {
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Foo resource to be synced.
+		// 运行syncHanlder，将Foo的namespace/name传递下去等待同步
 		if err := c.syncHandler(key); err != nil {
 			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
 		}
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
+		// 最后，如果没有出现错误，我们会Forget这个item，这样在下一个更新发生之前
+		// 它都不会再入队
 		c.workqueue.Forget(obj)
 		glog.Infof("Successfully synced '%s'", key)
 		return nil
@@ -238,6 +261,8 @@ func (c *Controller) processNextWorkItem() bool {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Status block of the Foo resource
 // with the current status of the resource.
+// syncHandler将actual state和desired state进行比较，并且尝试转换二者
+// 之后它会用资源的当前状态更新Foo资源的Status
 func (c *Controller) syncHandler(key string) error {
 	// Convert the namespace/name string into a distinct namespace and name
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -271,6 +296,7 @@ func (c *Controller) syncHandler(key string) error {
 	// Get the deployment with the name specified in Foo.spec
 	deployment, err := c.deploymentsLister.Deployments(foo.Namespace).Get(deploymentName)
 	// If the resource doesn't exist, we'll create it
+	// 如果resouce不存在，则我们会创建它
 	if errors.IsNotFound(err) {
 		deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Create(newDeployment(foo))
 	}
@@ -278,12 +304,15 @@ func (c *Controller) syncHandler(key string) error {
 	// If an error occurs during Get/Create, we'll requeue the item so we can
 	// attempt processing again later. This could have been caused by a
 	// temporary network failure, or any other transient reason.
+	// 如果在Get/Create的过程中发生了错误，我们会将这个item重新入队,这样我们就能试着再次处理这个item
+	// 发生错误的原因可能是暂时的网络问题或者其他短暂的问题导致的
 	if err != nil {
 		return err
 	}
 
 	// If the Deployment is not controlled by this Foo resource, we should log
 	// a warning to the event recorder and ret
+	// 如果Deployment不是被Foo资源控制的，我们应该在event recorder中记录一个warning并且退出
 	if !metav1.IsControlledBy(deployment, foo) {
 		msg := fmt.Sprintf(MessageResourceExists, deployment.Name)
 		c.recorder.Event(foo, corev1.EventTypeWarning, ErrResourceExists, msg)
@@ -307,11 +336,13 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Finally, we update the status block of the Foo resource to reflect the
 	// current state of the world
+	// 最后，我们更新Foo资源的status block用来反映当前的状态
 	err = c.updateFooStatus(foo, deployment)
 	if err != nil {
 		return err
 	}
 
+	// Foo资源同步成功
 	c.recorder.Event(foo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
@@ -320,12 +351,18 @@ func (c *Controller) updateFooStatus(foo *samplev1alpha1.Foo, deployment *appsv1
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
+	// 不要修改缓存中的对象，那些都是只读的
+	// 我们可以使用DeepCopy()来对原始对象做一个deep copy并且对它进行修改
+	// 或者为了更好的性能手动创建一个copy
 	fooCopy := foo.DeepCopy()
 	fooCopy.Status.AvailableReplicas = deployment.Status.AvailableReplicas
 	// If the CustomResourceSubresources feature gate is not enabled,
 	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
+	// 如果没有使能CustomResourceSubresources feature gate
+	// 我们必须使用Update而不是UpdateStatus方法用来更新Foo资源的Status block
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
+	// UpdateStatus不会允许修改资源的Spec部分，这能确保除了resource status外的其他部分不会被更新
 	_, err := c.sampleclientset.SamplecontrollerV1alpha1().Foos(foo.Namespace).Update(fooCopy)
 	return err
 }
@@ -333,6 +370,8 @@ func (c *Controller) updateFooStatus(foo *samplev1alpha1.Foo, deployment *appsv1
 // enqueueFoo takes a Foo resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should *not* be
 // passed resources of any type other than Foo.
+// enqueueFoo获取一个Foo资源并且将它转换为namespace/name类型的字符串并将它加入work queue
+// 这个方法不能传入除了Foo以外的其他类型
 func (c *Controller) enqueueFoo(obj interface{}) {
 	var key string
 	var err error
@@ -386,6 +425,8 @@ func (c *Controller) handleObject(obj interface{}) {
 // newDeployment creates a new Deployment for a Foo resource. It also sets
 // the appropriate OwnerReferences on the resource so handleObject can discover
 // the Foo resource that 'owns' it.
+// newDeployment为一个Foo资源创建一个新的Deployment，同时它会在资源中设置合适的OwnerReferences
+// 这样handleObject就能发现拥有该对象的Foo资源了
 func newDeployment(foo *samplev1alpha1.Foo) *appsv1.Deployment {
 	labels := map[string]string{
 		"app":        "nginx",

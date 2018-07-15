@@ -34,7 +34,9 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 	signal.Notify(c, shutdownSignals...)
 	go func() {
 		<-c
+		// 第一次signal到达时，只关闭stopCh
 		close(stop)
+		// 第二次signal到达时，再直接退出
 		<-c
 		os.Exit(1) // second signal. Exit directly.
 	}()

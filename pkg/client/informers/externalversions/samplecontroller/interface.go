@@ -24,8 +24,10 @@ import (
 )
 
 // Interface provides access to each of this group's versions.
+// Interface提供了对于该group内各个version的访问权限
 type Interface interface {
 	// V1alpha1 provides access to shared informers for resources in V1alpha1.
+	// V1alpha1提供了对于V1alpha1资源的shared informers的权利
 	V1alpha1() v1alpha1.Interface
 }
 
@@ -41,6 +43,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 }
 
 // V1alpha1 returns a new v1alpha1.Interface.
+// V1alpha1返回一个新的v1alpha1.Interface接口
 func (g *group) V1alpha1() v1alpha1.Interface {
 	return v1alpha1.New(g.factory, g.namespace, g.tweakListOptions)
 }

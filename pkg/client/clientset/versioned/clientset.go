@@ -34,6 +34,7 @@ type Interface interface {
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
+// Clientset包含了groups的clients，每个group都有一个version包含在Clientset中
 type Clientset struct {
 	*discovery.DiscoveryClient
 	samplecontrollerV1alpha1 *samplecontrollerv1alpha1.SamplecontrollerV1alpha1Client

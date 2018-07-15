@@ -26,10 +26,13 @@ import (
 )
 
 // FooLister helps list Foos.
+// FooLister用于list Foos
 type FooLister interface {
 	// List lists all Foos in the indexer.
+	// List用于列举indexer中的Foos对象
 	List(selector labels.Selector) (ret []*v1alpha1.Foo, err error)
 	// Foos returns an object that can list and get Foos.
+	// Foos返回一个能够list并且get Foos的对象
 	Foos(namespace string) FooNamespaceLister
 	FooListerExpansion
 }
@@ -40,6 +43,7 @@ type fooLister struct {
 }
 
 // NewFooLister returns a new FooLister.
+// NewFooLister返回一个新的FooLister
 func NewFooLister(indexer cache.Indexer) FooLister {
 	return &fooLister{indexer: indexer}
 }
@@ -68,12 +72,14 @@ type FooNamespaceLister interface {
 
 // fooNamespaceLister implements the FooNamespaceLister
 // interface.
+// fooNamespaceLister不过是在fooLister的基础上加了一个namespace字段
 type fooNamespaceLister struct {
 	indexer   cache.Indexer
 	namespace string
 }
 
 // List lists all Foos in the indexer for a given namespace.
+// fooNamespaceLister的List方法列出了给定的	namespace的indexer中的所有Foos
 func (s fooNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Foo, err error) {
 	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Foo))
@@ -82,6 +88,7 @@ func (s fooNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Foo,
 }
 
 // Get retrieves the Foo from the indexer for a given namespace and name.
+// Get从indexer中获取了一个给定的namespace和name的Foo
 func (s fooNamespaceLister) Get(name string) (*v1alpha1.Foo, error) {
 	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {

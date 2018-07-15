@@ -26,14 +26,18 @@ import (
 )
 
 // Interface can be implemented by anything that knows how to watch and report changes.
+// 任何知道如何watch以及汇报change的东西都可以实现这个接口
 type Interface interface {
 	// Stops watching. Will close the channel returned by ResultChan(). Releases
 	// any resources used by the watch.
+	// 停止watching，会关闭由ResultChan()返回的channel，以及任何watch所使用的资源
 	Stop()
 
 	// Returns a chan which will receive all the events. If an error occurs
 	// or Stop() is called, this channel will be closed, in which case the
 	// watch should be completely cleaned up.
+	// 返回一个channel用于接收所有的事件，如果发生了错误，或者调用了Stop()，channel就会
+	// 被关闭，在这种情况下，watch就会被完全清除
 	ResultChan() <-chan Event
 }
 
