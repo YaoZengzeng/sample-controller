@@ -109,6 +109,7 @@ const (
 // if the controller should shutdown
 // WaitForCacheSync等待caches填充完成，如果成功则返回false，如果controller被关闭了，则返回false
 func WaitForCacheSync(stopCh <-chan struct{}, cacheSyncs ...InformerSynced) bool {
+	// 每100毫秒轮询一次
 	err := wait.PollUntil(syncedPollPeriod,
 		func() (bool, error) {
 			for _, syncFunc := range cacheSyncs {
@@ -196,6 +197,7 @@ type deleteNotification struct {
 func (s *sharedIndexInformer) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 
+	// s.indexer是包含在fifo中的
 	fifo := NewDeltaFIFO(MetaNamespaceKeyFunc, s.indexer)
 
 	cfg := &Config{
@@ -237,6 +239,7 @@ func (s *sharedIndexInformer) Run(stopCh <-chan struct{}) {
 	s.controller.Run(stopCh)
 }
 
+// 用来表示是否已经完成第一次listing
 func (s *sharedIndexInformer) HasSynced() bool {
 	s.startedLock.Lock()
 	defer s.startedLock.Unlock()
@@ -361,12 +364,15 @@ func (s *sharedIndexInformer) HandleDeltas(obj interface{}) error {
 	defer s.blockDeltas.Unlock()
 
 	// from oldest to newest
+	// 遍历一个对象的Deltas
 	for _, d := range obj.(Deltas) {
 		switch d.Type {
 		case Sync, Added, Updated:
 			isSync := d.Type == Sync
+			// 更新cacheMutationDetector
 			s.cacheMutationDetector.AddObject(d.Object)
 			if old, exists, err := s.indexer.Get(d.Object); err == nil && exists {
+				// 更新indexer
 				if err := s.indexer.Update(d.Object); err != nil {
 					return err
 				}
@@ -530,6 +536,7 @@ func newProcessListener(handler ResourceEventHandler, requestedResyncPeriod, res
 }
 
 func (p *processorListener) add(notification interface{}) {
+	// 每个processorListener的add方法就是将notification通过p.addCh发送出去
 	p.addCh <- notification
 }
 

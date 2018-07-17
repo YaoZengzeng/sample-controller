@@ -30,11 +30,13 @@ import (
 //
 // keyFunc is used to figure out what key an object should have. (It's
 // exposed in the returned DeltaFIFO's KeyOf() method, with bonus features.)
+// keyFunc用来搞清楚一个object应该使用什么key
 //
 // 'keyLister' is expected to return a list of keys that the consumer of
 // this queue "knows about". It is used to decide which items are missing
 // when Replace() is called; 'Deleted' deltas are produced for these items.
 // It may be nil if you don't need to detect all deletions.
+// 'keyLister'会返回一系列的keys，这些keys是队列的consumer已经知道的
 // TODO: consider merging keyLister with this object, tracking a list of
 //       "known" keys when Pop() is called. Have to think about how that
 //       affects error retrying.
@@ -68,10 +70,13 @@ func NewDeltaFIFO(keyFunc KeyFunc, knownObjects KeyListerGetter) *DeltaFIFO {
 }
 
 // DeltaFIFO is like FIFO, but allows you to process deletes.
+// DeltaFIFO就像FIFO一样，但是允许你处理删除
 //
 // DeltaFIFO is a producer-consumer queue, where a Reflector is
 // intended to be the producer, and the consumer is whatever calls
 // the Pop() method.
+// DeltaFIFO是一个生产者-消费者队列，Reflector是作为生产者，而消费者是调用Pop()
+// 的程序
 //
 // DeltaFIFO solves this use case:
 //  * You want to process every object change (delta) at most once.
@@ -79,20 +84,29 @@ func NewDeltaFIFO(keyFunc KeyFunc, knownObjects KeyListerGetter) *DeltaFIFO {
 //    that's happened to it since you last processed it.
 //  * You want to process the deletion of objects.
 //  * You might want to periodically reprocess objects.
+// DeltaFIFO解决了以下问题：
+//	* 每个object change (delta)最多处理一次
+//	* 当处理一个对象时，想要看到自上次处理它以来发生在它上面的所有事
+//	* 处理一个objects的删除
+//	* 阶段性地重新处理objects
 //
 // DeltaFIFO's Pop(), Get(), and GetByKey() methods return
 // interface{} to satisfy the Store/Queue interfaces, but it
 // will always return an object of type Deltas.
+// DeltaFIFO的Pop(), Get()和GetByKey()返回的对象都是Deltas类型
 //
 // A note on threading: If you call Pop() in parallel from multiple
 // threads, you could end up with multiple threads processing slightly
 // different versions of the same object.
+// 当从多个线程并行地调用Pop()，最终可能是多个线程处理同一个对象的不同版本
 //
 // A note on the KeyLister used by the DeltaFIFO: It's main purpose is
 // to list keys that are "known", for the purpose of figuring out which
 // items have been deleted when Replace() or Delete() are called. The deleted
 // object will be included in the DeleteFinalStateUnknown markers. These objects
 // could be stale.
+// DeltaFIFO的主要目的是列举出那些已知的keys，从而能够搞清楚在调用Replace()或者Delete()
+// 的时候哪些items已经被删除了，那些被删除的对象会被标记为DeleteFinalStateUnknown
 type DeltaFIFO struct {
 	// lock/cond protects access to 'items' and 'queue'.
 	lock sync.RWMutex
@@ -106,8 +120,11 @@ type DeltaFIFO struct {
 
 	// populated is true if the first batch of items inserted by Replace() has been populated
 	// or Delete/Add/Update was called first.
+	// populated设置为true，如果第一批通过Replace()插入的items已经填充了
+	// 或者第一次Delete/Add/Update
 	populated bool
 	// initialPopulationCount is the number of items inserted by the first call of Replace()
+	// initialPopulationCount是第一次调用Replace()的时候插入的items的数目
 	initialPopulationCount int
 
 	// keyFunc is used to make the key used for queued item
@@ -117,6 +134,8 @@ type DeltaFIFO struct {
 	// knownObjects list keys that are "known", for the
 	// purpose of figuring out which items have been deleted
 	// when Replace() or Delete() is called.
+	// knownObjects列出那些已知的keys，为了搞清楚在调用Replace()或者
+	// Delete()的时候，哪些items已经被删除了
 	knownObjects KeyListerGetter
 
 	// Indication the queue is closed.
@@ -162,6 +181,8 @@ func (f *DeltaFIFO) KeyOf(obj interface{}) (string, error) {
 
 // Return true if an Add/Update/Delete/AddIfNotPresent are called first,
 // or an Update called first but the first batch of items inserted by Replace() has been popped
+// 如果Add/Update/Delete/AddIfNotPresent第一次被调用，返回true
+// 或者Update第一次被调用，但是通过Replace()第一批插入的items已经pop了
 func (f *DeltaFIFO) HasSynced() bool {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -170,6 +191,7 @@ func (f *DeltaFIFO) HasSynced() bool {
 
 // Add inserts an item, and puts it in the queue. The item is only enqueued
 // if it doesn't already exist in the set.
+// item只有在集合中不存在才会入队
 func (f *DeltaFIFO) Add(obj interface{}) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -188,6 +210,7 @@ func (f *DeltaFIFO) Update(obj interface{}) error {
 // Delete is just like Add, but makes an Deleted Delta. If the item does not
 // already exist, it will be ignored. (It may have already been deleted by a
 // Replace (re-list), for example.
+// 如果一个item已经不存在了，它就会被忽略，它可能在Replace的时候已经被删除了
 func (f *DeltaFIFO) Delete(obj interface{}) error {
 	id, err := f.KeyOf(obj)
 	if err != nil {
@@ -200,6 +223,8 @@ func (f *DeltaFIFO) Delete(obj interface{}) error {
 		if _, exists := f.items[id]; !exists {
 			// Presumably, this was deleted when a relist happened.
 			// Don't provide a second report of the same deletion.
+			// 想必，这已经在relist发生的时候删除了
+			// 对于同一个删除操作，不要播报两次
 			return nil
 		}
 	} else {
@@ -221,6 +246,7 @@ func (f *DeltaFIFO) Delete(obj interface{}) error {
 
 // AddIfNotPresent inserts an item, and puts it in the queue. If the item is already
 // present in the set, it is neither enqueued nor added to the set.
+// AddIfNotPresent插入一个item并且将它加入队列中，如果item已经存在在set中，则它既不会入队也不会加入set
 //
 // This is useful in a single producer/consumer scenario so that the consumer can
 // safely retry items without contending with the producer and potentially enqueueing
@@ -258,6 +284,8 @@ func (f *DeltaFIFO) addIfNotPresent(id string, deltas Deltas) {
 
 // re-listing and watching can deliver the same update multiple times in any
 // order. This will combine the most recent two deltas if they are the same.
+// re-listing和watching可以以任意顺序传输同一个update
+// 本函数会合并两个最新的deltas，如果它们相同的话
 func dedupDeltas(deltas Deltas) Deltas {
 	n := len(deltas)
 	if n < 2 {
@@ -274,8 +302,10 @@ func dedupDeltas(deltas Deltas) Deltas {
 
 // If a & b represent the same event, returns the delta that ought to be kept.
 // Otherwise, returns nil.
+// 如果a & b代表了同一个event，返回应该保留的delta，否则返回nil
 // TODO: is there anything other than deletions that need deduping?
 func isDup(a, b *Delta) *Delta {
+	// 除了删除，是否还有其他的事件会相同
 	if out := isDeletionDup(a, b); out != nil {
 		return out
 	}
@@ -313,16 +343,20 @@ func (f *DeltaFIFO) queueActionLocked(actionType DeltaType, obj interface{}) err
 	// If object is supposed to be deleted (last event is Deleted),
 	// then we should ignore Sync events, because it would result in
 	// recreation of this object.
+	// 如果object应该被删除（最后一个event为Deleted）
+	// 那么我们应该忽略Sync事件，因为它会导致该object的重建
 	if actionType == Sync && f.willObjectBeDeletedLocked(id) {
 		return nil
 	}
 
+	// 扩展f.items[id]
 	newDeltas := append(f.items[id], Delta{actionType, obj})
 	newDeltas = dedupDeltas(newDeltas)
 
 	_, exists := f.items[id]
 	if len(newDeltas) > 0 {
 		if !exists {
+			// 将新的item加入队列
 			f.queue = append(f.queue, id)
 		}
 		f.items[id] = newDeltas
@@ -331,6 +365,7 @@ func (f *DeltaFIFO) queueActionLocked(actionType DeltaType, obj interface{}) err
 		// We need to remove this from our map (extra items
 		// in the queue are ignored if they are not in the
 		// map).
+		// 如果newDeltas的长度为0，且之前f.items[id]就存在，则将其删除
 		delete(f.items, id)
 	}
 	return nil
@@ -409,6 +444,9 @@ func (f *DeltaFIFO) IsClosed() bool {
 // added/updated. The item is removed from the queue (and the store) before it
 // is returned, so if you don't successfully process it, you need to add it back
 // with AddIfNotPresent().
+// Pop会一直阻塞直到有一个item被加入队列，并且返回它。如果同时有多个items处于ready状态
+// 它们将以自己被添加或者更新的次序返回。item会在它返回之前从队列（和store）中删除，因此如果
+// 我们没有成功处理它，我们需要将它用AddIfNotPresent()重新加入队列
 // process function is called under lock, so it is safe update data structures
 // in it that need to be in sync with the queue (e.g. knownKeys). The PopProcessFunc
 // may return an instance of ErrRequeue with a nested error to indicate the current
@@ -420,16 +458,21 @@ func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	for {
+		// 一次pop就将一个对象以及它历次的记录都从队列中删除了
 		for len(f.queue) == 0 {
 			// When the queue is empty, invocation of Pop() is blocked until new item is enqueued.
 			// When Close() is called, the f.closed is set and the condition is broadcasted.
 			// Which causes this loop to continue and return from the Pop().
+			// 当队列为空时，对于Pop()的调用是阻塞的，直到有新的item入队
+			// 当Close()被调用时，f.closed就会被设置并且这种情况会被广播
+			// 这会导致循环continue或者从Pop()退出
 			if f.IsClosed() {
 				return nil, FIFOClosedError
 			}
 
 			f.cond.Wait()
 		}
+		// 取出队首的元素
 		id := f.queue[0]
 		f.queue = f.queue[1:]
 		item, ok := f.items[id]
@@ -440,14 +483,18 @@ func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 			// Item may have been deleted subsequently.
 			continue
 		}
+		// 将item删除
 		delete(f.items, id)
+		// 对item进行处理
 		err := process(item)
 		if e, ok := err.(ErrRequeue); ok {
+			// 如果处理遇到错误，则直接入队
 			f.addIfNotPresent(id, item)
 			err = e.Err
 		}
 		// Don't need to copyDeltas here, because we're transferring
 		// ownership to the caller.
+		// 此处不用调用copyDeltas，因为我们已经将所有权传递给了调用者
 		return item, err
 	}
 }
@@ -456,6 +503,9 @@ func (f *DeltaFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 // 'f' takes ownership of the map, you should not reference the map again
 // after calling this function. f's queue is reset, too; upon return, it
 // will contain the items in the map, in no particular order.
+// Replace会删除'f'中的内容，转而使用给定的map
+// 'f'取得map的控制权，在调用此函数以后就不能再次引用这个map了
+// f的队列也会被重置，等到返回的时候，它会在map中包含items，并不以特定的顺序
 func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -496,6 +546,8 @@ func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 	}
 
 	// Detect deletions not already in the queue.
+	// 如果在knownObjects中的object已经过期了
+	// 则将其标记为DeleteFinalStateUnknown
 	knownKeys := f.knownObjects.ListKeys()
 	queuedDeletions := 0
 	for _, k := range knownKeys {
@@ -579,6 +631,7 @@ func (f *DeltaFIFO) syncKeyLocked(key string) error {
 }
 
 // A KeyListerGetter is anything that knows how to list its keys and look up by key.
+// KeyListerGetter是任何知道如何list它的key以及通过key进行查询的对象
 type KeyListerGetter interface {
 	KeyLister
 	KeyGetter
@@ -604,12 +657,17 @@ const (
 	// The other types are obvious. You'll get Sync deltas when:
 	//  * A watch expires/errors out and a new list/watch cycle is started.
 	//  * You've turned on periodic syncs.
+	// 我们会获取到Sync类型的delta，当watch结束或者一个新的list/watch周期开始
+	// 开启了周期性地syncs
 	// (Anything that trigger's DeltaFIFO's Replace() method.)
+	// 任何触发了DeltaFIFO的Replace()方法的事件
 	Sync DeltaType = "Sync"
 )
 
 // Delta is the type stored by a DeltaFIFO. It tells you what change
 // happened, and the object's state after* that change.
+// Delta是DeltaFIFO存储的类型，它会告诉你发生了什么改变，以及改变之后对象的状态
+// 除非改变的类型是deletion，这时候我们将得到是对象删除前的最后状态
 //
 // [*] Unless the change is a deletion, and then you'll get the final
 //     state of the object before it was deleted.
@@ -620,6 +678,7 @@ type Delta struct {
 
 // Deltas is a list of one or more 'Delta's to an individual object.
 // The oldest delta is at index 0, the newest delta is the last one.
+// Deltas是一系列针对单个对象的'Delta'，最老的delta在index 0，最新的在最后一个
 type Deltas []Delta
 
 // Oldest is a convenience function that returns the oldest delta, or
@@ -653,6 +712,8 @@ func copyDeltas(d Deltas) Deltas {
 // an object was deleted but the watch deletion event was missed. In this
 // case we don't know the final "resting" state of the object, so there's
 // a chance the included `Obj` is stale.
+// DeletedFinalStateUnknown会被放入DeltaFIFO中，以防object已经被删除但是错过了watch
+// deletion event。在这种情况下我们不知道object最后的状态，因此，可能包含的`Obj`已经过旧了
 type DeletedFinalStateUnknown struct {
 	Key string
 	Obj interface{}

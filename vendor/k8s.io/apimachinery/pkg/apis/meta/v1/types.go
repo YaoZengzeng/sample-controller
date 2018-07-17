@@ -331,13 +331,16 @@ type ListOptions struct {
 	IncludeUninitialized bool `json:"includeUninitialized,omitempty" protobuf:"varint,6,opt,name=includeUninitialized"`
 	// Watch for changes to the described resources and return them as a stream of
 	// add, update, and remove notifications. Specify resourceVersion.
+	// 监听资源的变化，并且将它们返回作为一个add, update以及remove notification的流
 	// +optional
 	Watch bool `json:"watch,omitempty" protobuf:"varint,3,opt,name=watch"`
 	// When specified with a watch call, shows changes that occur after that particular version of a resource.
+	// 当在watch call中指定时，展示从该version之后的资源的改变
 	// Defaults to changes from the beginning of history.
 	// When specified for list:
 	// - if unset, then the result is returned from remote storage based on quorum-read flag;
 	// - if it's 0, then we simply return what we currently have in cache, no guarantee;
+	// - 如果为0，则简单地返回cache中已有的内容，不作任何保证
 	// - if set to non zero, then the result is at least as fresh as given rv.
 	// +optional
 	ResourceVersion string `json:"resourceVersion,omitempty" protobuf:"bytes,4,opt,name=resourceVersion"`

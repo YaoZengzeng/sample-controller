@@ -141,6 +141,7 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 }
 
 // Returns true once this controller has completed an initial resource listing
+// 一旦controller完成初始的resource listing，返回true
 func (c *controller) HasSynced() bool {
 	return c.config.Queue.HasSynced()
 }
@@ -171,6 +172,7 @@ func (c *controller) processLoop() {
 			}
 			if c.config.RetryOnError {
 				// This is the safe way to re-enqueue.
+				// 如果在Pop过程中发生了错误，则重新入队
 				c.config.Queue.AddIfNotPresent(obj)
 			}
 		}
@@ -278,6 +280,8 @@ func (r FilteringResourceEventHandler) OnDelete(obj interface{}) {
 // DeletionHandlingMetaNamespaceKeyFunc checks for
 // DeletedFinalStateUnknown objects before calling
 // MetaNamespaceKeyFunc.
+// DeletionHandlingMetaNamespaceKeyFunc在调用MetaNamespaceKeyFunc
+// 之前检查obj是否为DeletedFinalStateUnknown
 func DeletionHandlingMetaNamespaceKeyFunc(obj interface{}) (string, error) {
 	if d, ok := obj.(DeletedFinalStateUnknown); ok {
 		return d.Key, nil

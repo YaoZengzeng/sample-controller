@@ -24,7 +24,9 @@ import (
 )
 
 // Indexer is a storage interface that lets you list objects using multiple indexing functions
+// Indexer是一个存储接口，能够让你用多种indexing函数罗列对象
 type Indexer interface {
+	// Indexer也实现了Store接口
 	Store
 	// Retrieve list of objects that match on the named indexing function
 	Index(indexName string, obj interface{}) ([]interface{}, error)

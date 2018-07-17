@@ -26,6 +26,8 @@ import (
 // ThreadSafeStore is an interface that allows concurrent access to a storage backend.
 // TL;DR caveats: you must not modify anything returned by Get or List as it will break
 // the indexing feature in addition to not being thread safe.
+// ThreadSafeStore是一个接口，它允许对于一个存储后端的并发访问，我们不能修改任何通过Get或者List返回的对象
+// 因为这会破坏indexing feature以及不再线程安全
 //
 // The guarantees of thread safety provided by List/Get are only valid if the caller
 // treats returned items as read-only. For example, a pointer inserted in the store
@@ -34,6 +36,7 @@ import (
 // modifying objects stored by the indexers (if any) will *not* automatically lead
 // to a re-index. So it's not a good idea to directly modify the objects returned by
 // Get/List, in general.
+// 为了保证List/Get的安全性，对于返回的items只能read-only
 type ThreadSafeStore interface {
 	Add(key string, obj interface{})
 	Update(key string, obj interface{})

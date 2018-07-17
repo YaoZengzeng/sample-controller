@@ -138,6 +138,7 @@ var internalPackages = []string{"client-go/tools/cache/"}
 func (r *Reflector) Run(stopCh <-chan struct{}) {
 	glog.V(3).Infof("Starting reflector %v (%s) from %s", r.expectedType, r.resyncPeriod, r.name)
 	wait.Until(func() {
+		// 定期进行ListAndWatch()
 		if err := r.ListAndWatch(stopCh); err != nil {
 			utilruntime.HandleError(err)
 		}
@@ -189,15 +190,18 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 	options := metav1.ListOptions{ResourceVersion: "0"}
 	r.metrics.numberOfLists.Inc()
 	start := r.clock.Now()
+	// 调用listWatcher的List方法，获取某个资源对象的list
 	list, err := r.listerWatcher.List(options)
 	if err != nil {
 		return fmt.Errorf("%s: Failed to list %v: %v", r.name, r.expectedType, err)
 	}
 	r.metrics.listDuration.Observe(time.Since(start).Seconds())
+	// 获取list的元数据
 	listMetaInterface, err := meta.ListAccessor(list)
 	if err != nil {
 		return fmt.Errorf("%s: Unable to understand list result %#v: %v", r.name, list, err)
 	}
+	// 获取resource version
 	resourceVersion = listMetaInterface.GetResourceVersion()
 	items, err := meta.ExtractList(list)
 	if err != nil {
@@ -208,6 +212,7 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 	if err := r.syncWith(items, resourceVersion); err != nil {
 		return fmt.Errorf("%s: Unable to sync list result: %v", r.name, err)
 	}
+	// 设置reflector.lastSyncResourceVersion
 	r.setLastSyncResourceVersion(resourceVersion)
 
 	resyncerrc := make(chan error, 1)
@@ -228,6 +233,7 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 			}
 			if r.ShouldResync == nil || r.ShouldResync() {
 				glog.V(4).Infof("%s: forcing resync", r.name)
+				// 强制对reflector.store进行Resync()
 				if err := r.store.Resync(); err != nil {
 					resyncerrc <- err
 					return
@@ -300,6 +306,7 @@ func (r *Reflector) syncWith(items []runtime.Object, resourceVersion string) err
 	for _, item := range items {
 		found = append(found, item)
 	}
+	// 仅仅只是调用DeltaQueue的Replace方法
 	return r.store.Replace(found, resourceVersion)
 }
 

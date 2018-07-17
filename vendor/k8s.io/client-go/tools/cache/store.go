@@ -48,11 +48,14 @@ type Store interface {
 	// Replace will delete the contents of the store, using instead the
 	// given list. Store takes ownership of the list, you should not reference
 	// it after calling this function.
+	// Replace会删除store中的内容，转而使用参数中list的内容
+	// Store将拥有list的所有权，在调用本函数之后，不能再引用其中的内容
 	Replace([]interface{}, string) error
 	Resync() error
 }
 
 // KeyFunc knows how to make a key from an object. Implementations should be deterministic.
+// KeyFunc知道如何从一个object中获取一个key
 type KeyFunc func(obj interface{}) (string, error)
 
 // KeyError will be returned any time a KeyFunc gives an error; it includes the object
@@ -75,6 +78,9 @@ type ExplicitKey string
 // keys for API objects which implement meta.Interface.
 // The key uses the format <namespace>/<name> unless <namespace> is empty, then
 // it's just <name>.
+// MetaNamespaceKeyFunc是一个简单的默认的KeyFunc，它知道如何获取一个实现了meta.Interface
+// 的API objects的key
+// key的格式为<namespace>/<name>，若<namespace>为空，则只是<name>
 //
 // TODO: replace key-as-string with a key-as-struct so that this
 // packing/unpacking won't be necessary.
@@ -114,6 +120,7 @@ func SplitMetaNamespaceKey(key string) (namespace, name string, err error) {
 // cache responsibilities are limited to:
 //	1. Computing keys for objects via keyFunc
 //  2. Invoking methods of a ThreadSafeStorage interface
+// cache的责任仅限于：1.通过keyFunc为objects计算keys，2.调用ThreadSafeStorage的方法
 type cache struct {
 	// cacheStorage bears the burden of thread safety for the cache
 	cacheStorage ThreadSafeStore
@@ -241,6 +248,7 @@ func NewStore(keyFunc KeyFunc) Store {
 }
 
 // NewIndexer returns an Indexer implemented simply with a map and a lock.
+// NewIndexer返回一个Indexer，简单地由一个map和一个lock实现
 func NewIndexer(keyFunc KeyFunc, indexers Indexers) Indexer {
 	return &cache{
 		cacheStorage: NewThreadSafeStore(indexers, Indices{}),

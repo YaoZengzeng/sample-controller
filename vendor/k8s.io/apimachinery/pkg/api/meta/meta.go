@@ -68,6 +68,7 @@ func CommonAccessor(obj interface{}) (metav1.Common, error) {
 
 // ListAccessor returns a List interface for the provided object or an error if the object does
 // not provide List.
+// ListAccessor返回给定对象的List interface，或者一个error如果obj不是一个List的话
 // IMPORTANT: Objects are NOT a superset of lists. Do not use this check to determine whether an
 // object *is* a List.
 func ListAccessor(obj interface{}) (List, error) {

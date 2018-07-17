@@ -25,6 +25,8 @@ import (
 
 // PopProcessFunc is passed to Pop() method of Queue interface.
 // It is supposed to process the element popped from the queue.
+// PopProcessFunc会传递给Queue接口的Pop()方法
+// 它会对从队列中pop出来的element进行处理
 type PopProcessFunc func(interface{}) error
 
 // ErrRequeue may be returned by a PopProcessFunc to safely requeue
